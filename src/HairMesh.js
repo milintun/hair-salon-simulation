@@ -5,17 +5,25 @@ export class HairMesh {
         this.scalpMesh = scalpMesh;
         this.params = {
             length: params.length || 0.5,
+            color: new THREE.Color(params.color || 0x4a3b2a),
+            curlFrequency: params.curlFrequency || 10.0,
+            curlAmplitude: params.curlAmplitude || 0.05,
             ...params
         };
 
         this.prismGeometry = null;
         this.prismMesh = null;
 
+        // Data Textures
+        this.lengthMap = null;
+        this.colorMap = null;
+        this.curlMap = null;
+
         this.generatePrisms();
     }
 
     generatePrisms() {
-        // 1. Get Scalp Geometry Data
+        // Get Scalp Geometry Data
         const scalpGeo = this.scalpMesh.geometry;
         if (!scalpGeo.isBufferGeometry) {
             console.error("HairMesh: Scalp must use BufferGeometry");
@@ -52,14 +60,34 @@ export class HairMesh {
         this.hairMap.magFilter = THREE.NearestFilter;
         this.hairMap.needsUpdate = true;
 
+        // --- Initialize Property Maps (Length, Color, Curl) ---
+        // Size: prismCount x 1
+
+        // Length Map (R channel)
+        this.lengthData = new Float32Array(faceCount * 4); // RGBA just in case, or Red? RGBA is safer for alignment
+        this.lengthMap = new THREE.DataTexture(this.lengthData, faceCount, 1, THREE.RGBAFormat, THREE.FloatType);
+        this.lengthMap.minFilter = THREE.NearestFilter;
+        this.lengthMap.magFilter = THREE.NearestFilter;
+
+        // Color Map (RGBA)
+        this.colorData = new Float32Array(faceCount * 4);
+        this.colorMap = new THREE.DataTexture(this.colorData, faceCount, 1, THREE.RGBAFormat, THREE.FloatType);
+        this.colorMap.minFilter = THREE.NearestFilter;
+        this.colorMap.magFilter = THREE.NearestFilter;
+
+        // Curl Map (R=Freq, G=Amp)
+        this.curlData = new Float32Array(faceCount * 4);
+        this.curlMap = new THREE.DataTexture(this.curlData, faceCount, 1, THREE.RGBAFormat, THREE.FloatType);
+        this.curlMap.minFilter = THREE.NearestFilter;
+        this.curlMap.magFilter = THREE.NearestFilter;
+
+        // Initialize with default values
+        this.resetProperties();
+
         // Update prism data (initial)
         this.updatePrismData();
 
-        // 2. Generate Strands
         this.generateStrands();
-
-        // Debug Mesh (Optional)
-        // ... (kept simple or removed for performance)
     }
 
     updatePrismData() {
@@ -116,7 +144,7 @@ export class HairMesh {
     }
 
     generateStrands() {
-        const strandsPerFace = 16; // Configurable
+        const strandsPerFace = 35; // Balanced density for performance and appearance
         const segmentsPerStrand = 30; // Increased to 30 for even smoother curls
         const totalStrands = this.prismCount * strandsPerFace;
         const vertexCount = totalStrands * (segmentsPerStrand + 1); // Line strip
@@ -170,15 +198,85 @@ export class HairMesh {
         geometry.setAttribute('t', new THREE.BufferAttribute(ts, 1));
         geometry.setIndex(indices);
 
+        console.log("HairMesh Generated:");
+        console.log("  Vertices:", vertexCount);
+        console.log("  Indices:", indices.length);
+        console.log("  Positions:", positions.length);
+        console.log("  First Position:", positions[0], positions[1], positions[2]);
+
         this.strandGeometry = geometry;
     }
 
+    resetProperties() {
+        const len = this.params.length;
+        const col = this.params.color;
+        const freq = this.params.curlFrequency;
+        const amp = this.params.curlAmplitude;
+
+        for (let i = 0; i < this.prismCount; i++) {
+            // Length
+            this.lengthData[i * 4] = len;
+
+            // Color
+            this.colorData[i * 4] = col.r;
+            this.colorData[i * 4 + 1] = col.g;
+            this.colorData[i * 4 + 2] = col.b;
+            this.colorData[i * 4 + 3] = 1.0;
+
+            // Curl
+            this.curlData[i * 4] = freq;
+            this.curlData[i * 4 + 1] = amp;
+        }
+
+        this.lengthMap.needsUpdate = true;
+        this.colorMap.needsUpdate = true;
+        this.curlMap.needsUpdate = true;
+    }
+
     update(params) {
-        // Update length, etc.
-        // Would need to regenerate or update vertex positions.
+        // Update global params if provided, then reset/update maps
+        if (params.length !== undefined) this.params.length = params.length;
+        if (params.color !== undefined) this.params.color.set(params.color);
+
         if (params.length !== undefined) {
-            this.params.length = params.length;
             this.updatePrismData();
+            for (let i = 0; i < this.prismCount; i++) this.lengthData[i * 4] = this.params.length;
+            this.lengthMap.needsUpdate = true;
+        }
+
+        if (params.color !== undefined) {
+            // Update all color data
+            for (let i = 0; i < this.prismCount; i++) {
+                this.colorData[i * 4] = this.params.color.r;
+                this.colorData[i * 4 + 1] = this.params.color.g;
+                this.colorData[i * 4 + 2] = this.params.color.b;
+            }
+            this.colorMap.needsUpdate = true;
+        }
+    }
+
+    // Methods for tools to call
+    setLengthAt(index, value) {
+        if (index >= 0 && index < this.prismCount) {
+            this.lengthData[index * 4] = value;
+            this.lengthMap.needsUpdate = true;
+        }
+    }
+
+    setColorAt(index, color) {
+        if (index >= 0 && index < this.prismCount) {
+            this.colorData[index * 4] = color.r;
+            this.colorData[index * 4 + 1] = color.g;
+            this.colorData[index * 4 + 2] = color.b;
+            this.colorMap.needsUpdate = true;
+        }
+    }
+
+    setCurlAt(index, freq, amp) {
+        if (index >= 0 && index < this.prismCount) {
+            this.curlData[index * 4] = freq;
+            this.curlData[index * 4 + 1] = amp;
+            this.curlMap.needsUpdate = true;
         }
     }
 }
