@@ -24,7 +24,7 @@ export class ToolFactory {
 
         // Blades
         const bladeGeo = new THREE.BoxGeometry(0.02, 0.4, 0.005);
-        const bladeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.9, roughness: 0.1 });
+        const bladeMat = new THREE.MeshStandardMaterial({ color: "#b5b5b5", roughness: 0.4 });
 
         const blade1 = new THREE.Mesh(bladeGeo, bladeMat);
         blade1.position.set(-0.02, 0.15, 0);

@@ -160,9 +160,8 @@ export class InteractionManager {
 
             if (this.activeTool === 'dryer') {
                 this.applyDryer(hitPoint, hitNormal);
-            } else {
-                this.applyToRegion(hitPoint);
             }
+            this.applyToRegion(hitPoint);
         }
     }
 
@@ -183,9 +182,8 @@ export class InteractionManager {
             // Apply to region
             if (this.activeTool === 'dryer') {
                 this.applyDryer(hitPoint, hitNormal);
-            } else {
-                this.applyToRegion(hitPoint);
             }
+            this.applyToRegion(hitPoint);
         }
     }
 
@@ -295,6 +293,10 @@ export class InteractionManager {
                 // Decrease curl
                 this.hairMesh.curlData[i4] = Math.max(0.0, this.hairMesh.curlData[i4] - this.curlSpeed);
                 this.hairMesh.curlData[i4 + 1] = Math.max(0.0, this.hairMesh.curlData[i4 + 1] - 0.005);
+                break;
+
+            case 'dryer':
+                // Dryer applies temporary wind effect via shader, no permanent data changes needed
                 break;
         }
     }

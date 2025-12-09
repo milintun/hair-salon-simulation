@@ -7,6 +7,7 @@ import { HairTrimmings } from './HairTrimmings.js';
 import { ToolFactory } from './ToolFactory.js';
 import { HairMaterial } from './HairMaterial.js';
 import WebGL from 'three/examples/jsm/capabilities/WebGL.js';
+import { TeapotGeometry } from 'three/examples/jsm/geometries/TeapotGeometry.js';
 
 // Error Handler for debugging
 window.addEventListener('error', (e) => {
@@ -26,7 +27,7 @@ window.addEventListener('error', (e) => {
 
 // Scene Setup
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111111);
+scene.background = new THREE.Color();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.5, 3);
@@ -41,7 +42,7 @@ const hudCamera = new THREE.OrthographicCamera(
 hudCamera.position.z = 10;
 
 // HUD Lighting
-const hudAmbient = new THREE.AmbientLight(0xffffff, 1.0);
+const hudAmbient = new THREE.AmbientLight(0xffffff, 1);
 hudScene.add(hudAmbient);
 
 const hudDirectional = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -95,7 +96,7 @@ scene.add(directionalLight);
 // --- Scalp & Hair Setup ---
 
 // Create a Head (Base)
-const headGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+const headGeometry = new TeapotGeometry(0.5);
 const headMaterial = new THREE.MeshStandardMaterial({ color: 0xf4c2a0 }); // Skin tone
 const head = new THREE.Mesh(headGeometry, headMaterial);
 head.position.y = 1;
@@ -235,6 +236,7 @@ stylingFolder.addColor(params, 'hairColor').name('Color').onChange(v => {
 stylingFolder.add(hairMaterial.uniforms.frizzAmount, 'value', 0.0, 0.5).name('Frizz');
 params.curlFrequency = 10.0; // Default
 params.curlAmplitude = 0.05; // Default
+params.partingStrength = 0.0; // Default
 
 stylingFolder.add(params, 'curlFrequency', 0.0, 20.0).name('Curl Freq').onChange(v => {
     hairMesh.params.curlFrequency = v; // Update the hairMesh params
@@ -243,6 +245,9 @@ stylingFolder.add(params, 'curlFrequency', 0.0, 20.0).name('Curl Freq').onChange
 stylingFolder.add(params, 'curlAmplitude', 0.0, 0.2).name('Curl Amp').onChange(v => {
     hairMesh.params.curlAmplitude = v; // Update the hairMesh params
     hairMesh.resetProperties();
+});
+stylingFolder.add(params, 'partingStrength', 0.0, 1.0).name('Parting').onChange(v => {
+    hairMesh.update({ partingStrength: v });
 });
 stylingFolder.add(hairMaterial.uniforms.gravity, 'value', 0.0, 2.0).name('Gravity');
 stylingFolder.open();

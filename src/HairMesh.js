@@ -8,6 +8,7 @@ export class HairMesh {
             color: new THREE.Color(params.color || 0x4a3b2a),
             curlFrequency: params.curlFrequency || 10.0,
             curlAmplitude: params.curlAmplitude || 0.05,
+            partingStrength: params.partingStrength || 0.0,
             ...params
         };
 
@@ -124,9 +125,29 @@ export class HairMesh {
 
             // Extrude
             const len = this.params.length;
-            const pA_top = pA.clone().add(nA.clone().multiplyScalar(len));
-            const pB_top = pB.clone().add(nB.clone().multiplyScalar(len));
-            const pC_top = pC.clone().add(nC.clone().multiplyScalar(len));
+            const partStrength = this.params.partingStrength;
+
+            // Calculate growth direction with parting
+            // Simple parting along X=0
+            const applyParting = (pos, normal) => {
+                if (partStrength <= 0.001) return normal;
+
+                const sign = pos.x >= 0 ? 1 : -1;
+                const partDir = new THREE.Vector3(sign, 0, 0); // Push sideways
+
+                // Bias the normal towards the side
+                // We want to keep some upward component, so we lerp
+                const newDir = normal.clone().lerp(partDir, partStrength).normalize();
+                return newDir;
+            };
+
+            const dirA = applyParting(pA, nA);
+            const dirB = applyParting(pB, nB);
+            const dirC = applyParting(pC, nC);
+
+            const pA_top = pA.clone().add(dirA.multiplyScalar(len));
+            const pB_top = pB.clone().add(dirB.multiplyScalar(len));
+            const pC_top = pC.clone().add(dirC.multiplyScalar(len));
 
             // Set texture data
             // Bottom: 0, 1, 2
@@ -237,8 +258,9 @@ export class HairMesh {
         // Update global params if provided, then reset/update maps
         if (params.length !== undefined) this.params.length = params.length;
         if (params.color !== undefined) this.params.color.set(params.color);
+        if (params.partingStrength !== undefined) this.params.partingStrength = params.partingStrength;
 
-        if (params.length !== undefined) {
+        if (params.length !== undefined || params.partingStrength !== undefined) {
             this.updatePrismData();
             for (let i = 0; i < this.prismCount; i++) this.lengthData[i * 4] = this.params.length;
             this.lengthMap.needsUpdate = true;
